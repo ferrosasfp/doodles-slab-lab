@@ -34,6 +34,11 @@ const DOODLES = {
 
 const GIFJS_URL    = "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js";
 const GIFJS_WORKER = "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js";
+// SRI hashes for the pinned gif.js@0.2.0 artifacts above. If jsdelivr ever
+// serves modified content, the script tag will refuse to execute and the
+// worker fetch will throw before becoming an executable Blob URL.
+const GIFJS_SRI        = "sha384-4RMW82CWFobXY+HRHXe5go/V5acBhiIVGCT+2k7TEoxi7AiWKw8WoWb9qMU+FAFu";
+const GIFJS_WORKER_SRI = "sha384-uL0SwIQSos1DfQU2KzlDbPuSz7Jwo+hmNPIhe86VJ+MWwyj0DvjngnAgWrkNi9eQ";
 
 // Slab geometry — 5:7 ratio like a trading card
 const SLAB_W = 1.0;
@@ -853,13 +858,15 @@ function ensureGifJs() {
       await new Promise((resolve, reject) => {
         const s = document.createElement("script");
         s.src = GIFJS_URL; s.async = true;
+        s.crossOrigin = "anonymous";
+        s.integrity = GIFJS_SRI;
         s.onload = resolve;
-        s.onerror = () => reject(new Error("Failed to load gif.js"));
+        s.onerror = () => reject(new Error("Failed to load or verify gif.js (SRI mismatch?)"));
         document.head.appendChild(s);
       });
     }
     if (!gifWorkerUrl) {
-      const r = await fetch(GIFJS_WORKER);
+      const r = await fetch(GIFJS_WORKER, { integrity: GIFJS_WORKER_SRI });
       if (!r.ok) throw new Error("Failed to fetch gif.worker.js");
       gifWorkerUrl = URL.createObjectURL(await r.blob());
     }
