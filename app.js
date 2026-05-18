@@ -301,20 +301,32 @@ function drawSlabFront(canvas, entry) {
   ctx.fill(frameRegion, "evenodd");
   ctx.restore();
 
-  // ── LAYER 2: lighter rainbow tint over the card (so the doodle stays clear) ──
+  // ── LAYER 2: barely-there rainbow hint over the cream paper only ──
+  // (very low alpha so it doesn't desaturate the NFT image which sits on this card)
   ctx.save();
   ctx.globalCompositeOperation = "screen";
   const cardTint = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + cardH);
-  cardTint.addColorStop(0.00, "rgba(255, 80,160,0.10)");
-  cardTint.addColorStop(0.33, "rgba(255,210, 90,0.08)");
-  cardTint.addColorStop(0.66, "rgba( 80,220,255,0.10)");
-  cardTint.addColorStop(1.00, "rgba(200,100,255,0.10)");
+  cardTint.addColorStop(0.00, "rgba(255, 80,160,0.04)");
+  cardTint.addColorStop(0.33, "rgba(255,210, 90,0.03)");
+  cardTint.addColorStop(0.66, "rgba( 80,220,255,0.04)");
+  cardTint.addColorStop(1.00, "rgba(200,100,255,0.04)");
   ctx.fillStyle = cardTint;
   ctx.fillRect(cardX, cardY, cardW, cardH);
   ctx.restore();
 
-  // ── LAYER 3: diagonal rainbow stripes (real holo stripes pattern) ──
+  // Clip region used by Layers 3 & 4: full slab MINUS the card rect (evenodd).
+  // Keeps strong foil stripes / white shine on the black plastic frame only,
+  // so the NFT colors stay vivid.
+  function clipToFrameOnly() {
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.rect(cardX, cardY, cardW, cardH);
+    ctx.clip("evenodd");
+  }
+
+  // ── LAYER 3: diagonal rainbow stripes — frame only ──
   ctx.save();
+  clipToFrameOnly();
   ctx.globalCompositeOperation = "screen";
   ctx.translate(W / 2, H / 2);
   ctx.rotate(-0.55);
@@ -329,21 +341,22 @@ function drawSlabFront(canvas, entry) {
     const col = stripeColors[i % stripeColors.length];
     const g = ctx.createLinearGradient(x, 0, x + W * 0.08, H * 2);
     g.addColorStop(0.0, `rgba(${col[0]},${col[1]},${col[2]},0)`);
-    g.addColorStop(0.5, `rgba(${col[0]},${col[1]},${col[2]},0.35)`);
+    g.addColorStop(0.5, `rgba(${col[0]},${col[1]},${col[2]},0.45)`);
     g.addColorStop(1.0, `rgba(${col[0]},${col[1]},${col[2]},0)`);
     ctx.fillStyle = g;
     ctx.fillRect(x, 0, W * 0.08, H * 2.5);
   }
   ctx.restore();
 
-  // ── LAYER 4: bright "money shot" white highlight (vertical band) ──
+  // ── LAYER 4: bright "money shot" white highlight — frame only ──
   ctx.save();
+  clipToFrameOnly();
   ctx.globalCompositeOperation = "screen";
   const shine = ctx.createLinearGradient(W * 0.30, 0, W * 0.55, H);
   shine.addColorStop(0.00, "rgba(255,255,255,0)");
-  shine.addColorStop(0.45, "rgba(255,255,255,0.08)");
-  shine.addColorStop(0.50, "rgba(255,255,255,0.30)");
-  shine.addColorStop(0.55, "rgba(255,255,255,0.08)");
+  shine.addColorStop(0.45, "rgba(255,255,255,0.10)");
+  shine.addColorStop(0.50, "rgba(255,255,255,0.38)");
+  shine.addColorStop(0.55, "rgba(255,255,255,0.10)");
   shine.addColorStop(1.00, "rgba(255,255,255,0)");
   ctx.fillStyle = shine;
   ctx.fillRect(0, 0, W, H);
@@ -413,9 +426,10 @@ function drawCardContent(ctx, x, y, w, h, entry) {
     const s = Math.min(imgW / img.naturalWidth, imgH / img.naturalHeight);
     const dw = img.naturalWidth * s;
     const dh = img.naturalHeight * s;
-    // Big vibrance boost so the NFT really pops off the cream card
+    // Big vibrance boost so the NFT really pops off the cream card.
+    // Bumped saturate+contrast so colors stay vivid even with the holo layers on top.
     const prevFilter = ctx.filter;
-    ctx.filter = "saturate(1.55) contrast(1.18) brightness(1.05)";
+    ctx.filter = "saturate(2.0) contrast(1.28) brightness(1.04)";
     ctx.drawImage(img, imgX + (imgW - dw) / 2, imgY + (imgH - dh) / 2, dw, dh);
     ctx.filter = prevFilter;
   } else {
