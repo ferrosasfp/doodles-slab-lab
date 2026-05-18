@@ -190,11 +190,11 @@ function roundRectPath(ctx, x, y, w, h, r) {
  *   │ │ ART RARE, JPEG   │ │  GEM MT
  *   │ └──────────────────┘ │  10
  *   │ ┌──────────────────┐ │
- *   │ │ SPECIMEN      ✿  │ │  <- card (cream) header
+ *   │ │ DOODLES       ✿  │ │  <- card (cream) header
  *   │ │                  │ │
- *   │ │   [NFT IMG]      │ │
+ *   │ │   [DOODLE IMG]   │ │
  *   │ │                  │ │
- *   │ │ SPECIMEN #X      │ │
+ *   │ │ DOODLES #X       │ │
  *   │ │ FACE   HAIR      │ │  <- traits in 2 cols
  *   │ │ skull  bowlcut   │ │
  *   │ │ ...              │ │
@@ -444,13 +444,13 @@ function drawCardContent(ctx, x, y, w, h, entry) {
 
   const innerPad = Math.round(w * 0.04);
 
-  // === Card header strip: "SPECIMEN" wordmark + ✿ logo ===
+  // === Card header strip: "DOODLES" wordmark + ✿ logo ===
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#111";
   ctx.textAlign = "left";
   const wordSize = Math.round(h * 0.055); // bumped from 0.04
   ctx.font = `400 ${wordSize}px Anton, 'Inter', system-ui, sans-serif`;
-  ctx.fillText("SPECIMEN", x + innerPad, y + innerPad + wordSize * 0.88);
+  ctx.fillText("DOODLES", x + innerPad, y + innerPad + wordSize * 0.88);
 
   // ✿ flower logo top-right
   drawCardLogo(ctx, x + w - innerPad - wordSize * 0.7, y + innerPad + wordSize * 0.42, wordSize * 0.5);
@@ -490,7 +490,7 @@ function drawCardContent(ctx, x, y, w, h, entry) {
   // Title much bigger so it's the clear focal point of the lower section
   const titleSize = Math.round(h * 0.046);
   ctx.font = `400 ${titleSize}px Anton, 'Inter', system-ui, sans-serif`;
-  const titleText = entry ? `SPECIMEN #${entry.id}` : "SPECIMEN #----";
+  const titleText = entry ? `DOODLES #${entry.id}` : "DOODLES #----";
   ctx.fillText(titleText, x + innerPad, botY + titleSize * 0.88);
 
   // Traits in 2 columns (up to 6) — bigger labels and values
@@ -756,7 +756,7 @@ function render2DPreview(t = 0) {
 // Exports
 // ============================================================================
 function requireCurrent() {
-  if (!current) throw new Error("Load an NFT first — type a token id and click Slab it.");
+  if (!current) throw new Error("Load a Doodle first — type a token id and click Slab it.");
   return current;
 }
 
@@ -1146,19 +1146,19 @@ async function loadSlab(rawId) {
   if (!/^\d+$/.test(id)) return showError("Token id must be a positive integer");
   const n = Number(id);
   if (n < 0 || n > DOODLES.maxId)
-    return showError(`Token ids go from 0 to ${DOODLES.maxId}`);
+    return showError(`Doodles token ids go from 0 to ${DOODLES.maxId}`);
 
   showError("");
-  setLoading(true, "fetching nft…");
+  setLoading(true, "fetching doodle…");
   setBusy(true);
   try {
     const entry = await fetchDoodle(id);
     current = entry;
     rerenderSlabTexture();
-    showToast(`✿ Specimen #${id} loaded in ${entry.loadMs}ms`);
+    showToast(`✿ Doodle #${id} loaded in ${entry.loadMs}ms`);
   } catch (e) {
     console.error(e);
-    showError(e.message || "Could not load NFT");
+    showError(e.message || "Could not load Doodle");
   } finally {
     setLoading(false);
     setBusy(false);
