@@ -289,13 +289,13 @@ function drawSlabFront(canvas, entry) {
   ctx.save();
   ctx.globalCompositeOperation = "screen";
   const rainbow = ctx.createLinearGradient(W * -0.1, H * -0.1, W * 1.1, H * 1.1);
-  rainbow.addColorStop(0.00, "rgba(255, 60,140,0.55)"); // hot pink
-  rainbow.addColorStop(0.18, "rgba(255,150, 60,0.50)"); // orange
-  rainbow.addColorStop(0.34, "rgba(255,230, 80,0.45)"); // gold
-  rainbow.addColorStop(0.50, "rgba(100,255,160,0.50)"); // mint green
-  rainbow.addColorStop(0.66, "rgba( 60,200,255,0.55)"); // cyan
-  rainbow.addColorStop(0.82, "rgba(180,100,255,0.55)"); // violet
-  rainbow.addColorStop(1.00, "rgba(255, 70,180,0.55)"); // pink
+  rainbow.addColorStop(0.00, "rgba(255, 60,140,0.80)"); // hot pink
+  rainbow.addColorStop(0.18, "rgba(255,150, 60,0.75)"); // orange
+  rainbow.addColorStop(0.34, "rgba(255,230, 80,0.70)"); // gold
+  rainbow.addColorStop(0.50, "rgba(100,255,160,0.75)"); // mint green
+  rainbow.addColorStop(0.66, "rgba( 60,200,255,0.80)"); // cyan
+  rainbow.addColorStop(0.82, "rgba(180,100,255,0.80)"); // violet
+  rainbow.addColorStop(1.00, "rgba(255, 70,180,0.80)"); // pink
   ctx.fillStyle = rainbow;
   // Strong on the frame
   ctx.fill(frameRegion, "evenodd");
@@ -341,7 +341,7 @@ function drawSlabFront(canvas, entry) {
     const col = stripeColors[i % stripeColors.length];
     const g = ctx.createLinearGradient(x, 0, x + W * 0.08, H * 2);
     g.addColorStop(0.0, `rgba(${col[0]},${col[1]},${col[2]},0)`);
-    g.addColorStop(0.5, `rgba(${col[0]},${col[1]},${col[2]},0.45)`);
+    g.addColorStop(0.5, `rgba(${col[0]},${col[1]},${col[2]},0.70)`);
     g.addColorStop(1.0, `rgba(${col[0]},${col[1]},${col[2]},0)`);
     ctx.fillStyle = g;
     ctx.fillRect(x, 0, W * 0.08, H * 2.5);
@@ -354,9 +354,9 @@ function drawSlabFront(canvas, entry) {
   ctx.globalCompositeOperation = "screen";
   const shine = ctx.createLinearGradient(W * 0.30, 0, W * 0.55, H);
   shine.addColorStop(0.00, "rgba(255,255,255,0)");
-  shine.addColorStop(0.45, "rgba(255,255,255,0.10)");
-  shine.addColorStop(0.50, "rgba(255,255,255,0.38)");
-  shine.addColorStop(0.55, "rgba(255,255,255,0.10)");
+  shine.addColorStop(0.45, "rgba(255,255,255,0.18)");
+  shine.addColorStop(0.50, "rgba(255,255,255,0.58)");
+  shine.addColorStop(0.55, "rgba(255,255,255,0.18)");
   shine.addColorStop(1.00, "rgba(255,255,255,0)");
   ctx.fillStyle = shine;
   ctx.fillRect(0, 0, W, H);
@@ -368,8 +368,8 @@ function drawSlabFront(canvas, entry) {
   // Deterministic sparkle positions based on a simple LCG seeded from slab dims
   let seed = 1234567;
   const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  for (let i = 0; i < 90; i++) {
-    const x = rng() * W, y = rng() * H, r = 1 + rng() * 3.5;
+  for (let i = 0; i < 130; i++) {
+    const x = rng() * W, y = rng() * H, r = 1 + rng() * 4.0;
     // skip sparkles that would land on the card (most concentration on frame)
     if (x > cardX && x < cardX + cardW && y > cardY && y < cardY + cardH) {
       if (rng() > 0.25) continue; // 25% of card-area sparkles survive
