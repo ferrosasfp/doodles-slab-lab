@@ -6,7 +6,7 @@
    =========================================================================== */
 
 :root {
-  /* Palette sampled directly from the Doodles NFT */
+  /* Palette sampled from the underlying NFT artwork */
   --bg: #c1eefe;            /* sky — NFT background */
   --bg-2: #d9f3ff;          /* lighter sky */
   --paper: #fffaf2;         /* warm cream paper */

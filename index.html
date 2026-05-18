@@ -6,7 +6,7 @@
     <title>Slab Lab · Community Grading</title>
     <meta
       name="description"
-      content="Turn any Doodle into a Pokemon-style graded slab card. Preview, animate, and export as PNG, GIF, WebM, or GLB."
+      content="Turn any NFT into a community-graded slab card. Preview, animate, and export as PNG, GIF, WebM, or GLB."
     />
     <meta name="theme-color" content="#c1eefe" />
 
@@ -88,7 +88,7 @@
               <label for="collection">Collection</label>
               <div class="seg" role="tablist">
                 <button class="seg-btn active" data-collection="doodles" role="tab" aria-selected="true" id="collection">
-                  ✿ DOODLES
+                  ✿ MY COLLECTION
                 </button>
               </div>
             </div>
@@ -106,7 +106,7 @@
                   autocomplete="off"
                   maxlength="4"
                 />
-                <button id="randomSlab" class="btn-icon" title="Random Doodle" aria-label="Pick a random Doodle">
+                <button id="randomSlab" class="btn-icon" title="Random NFT" aria-label="Pick a random NFT">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
                     <circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" />
@@ -140,7 +140,7 @@
             <span class="stage-spark" style="bottom: 12%; right: 10%; animation-delay: 0.5s;" aria-hidden="true">✿</span>
 
             <div class="slab-wrap">
-              <canvas id="slabCanvas" class="slab-canvas" aria-label="Doodle trading card"></canvas>
+              <canvas id="slabCanvas" class="slab-canvas" aria-label="Community-graded NFT trading card"></canvas>
             </div>
 
             <div class="stage-loading" id="stageLoading" hidden>
@@ -222,8 +222,10 @@
         <footer class="footer">
           <div class="row1">made with care by the community ✿</div>
           <div class="row2">
-            &copy; <span id="footerYear">2026</span> · A community love-letter to Doodles · art by Burnt Toast.<br/>
-            Not affiliated with Doodles LLC, PSA, or The Pokémon Company. All IP belongs to the respective owners.
+            &copy; <span id="footerYear">2026</span> · Independent, non-commercial fan tool by an NFT holder, for NFT holders.<br/>
+            <strong>This project is NOT affiliated with, endorsed by, or sponsored by Doodles LLC, PSA, Burnt Toast, or The Pokémon Company.</strong>
+            All trademarks, names and artwork are the property of their respective owners. This tool only renders publicly available
+            on-chain token metadata into a decorative card frame for personal, non-commercial use by holders of their own NFTs.
           </div>
         </footer>
 

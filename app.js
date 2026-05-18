@@ -1,6 +1,6 @@
-/* Doodles Slab Lab — PSA-style 3D graded slab
+/* Slab Lab — community-graded 3D NFT slab renderer
  * Three.js renders a black plastic encapsulation case with a red-bordered
- * cert label window and the Doodle card visible through the plastic.
+ * cert label window and the NFT card visible through the plastic.
  * Rotating animation reveals foil/holo reflections (env map + clearcoat).
  *
  * The same Three.js scene drives:
@@ -181,20 +181,20 @@ function roundRectPath(ctx, x, y, w, h, r) {
  * Render the entire slab FRONT to a canvas. This canvas becomes the texture
  * for the +Z face of the slab mesh.
  *
- * Layout (referenced from real PSA graded NFT slabs):
+ * Layout (community-graded slab format):
  *   [black plastic case]
  *   ┌──────────────────────┐
  *   │ ┌──────────────────┐ │  <- red-bordered cert label (~7% from top)
- *   │ │ 2026 DOODLES™ #X │ │
- *   │ │ DOODLES OFFICIAL │ │
+ *   │ │ 2026 · COMMUNITY │ │
+ *   │ │ COMMUNITY GRADED │ │
  *   │ │ ART RARE, JPEG   │ │  GEM MT
  *   │ └──────────────────┘ │  10
  *   │ ┌──────────────────┐ │
- *   │ │ DOODLES       ✿  │ │  <- card (cream) header
+ *   │ │ SPECIMEN      ✿  │ │  <- card (cream) header
  *   │ │                  │ │
- *   │ │   [DOODLE IMG]   │ │
+ *   │ │   [NFT IMG]      │ │
  *   │ │                  │ │
- *   │ │ DOODLES #X       │ │
+ *   │ │ SPECIMEN #X      │ │
  *   │ │ FACE   HAIR      │ │  <- traits in 2 cols
  *   │ │ skull  bowlcut   │ │
  *   │ │ ...              │ │
@@ -224,7 +224,7 @@ function drawSlabFront(canvas, entry) {
   const certW = W - PAD * 2;
   const certH = Math.round(H * 0.095); // a touch taller so text breathes
 
-  // PSA red border ring
+  // Red border ring (classic grading-cert look)
   ctx.fillStyle = "#c8102e";
   roundRectPath(ctx, certX - 5, certY - 5, certW + 10, certH + 10, 5);
   ctx.fill();
@@ -246,9 +246,9 @@ function drawSlabFront(canvas, entry) {
   ctx.textAlign = "left";
   const tx = certX + padInner * 1.5;
   let ty = certY + padInner + leftSize;
-  ctx.fillText(`${new Date().getFullYear()} DOODLES™`, tx, ty);
+  ctx.fillText(`${new Date().getFullYear()} · COMMUNITY`, tx, ty);
   ty += lineH;
-  ctx.fillText("DOODLES OFFICIAL", tx, ty);
+  ctx.fillText("COMMUNITY GRADED", tx, ty);
   ty += lineH;
   ctx.fillText("ART RARE, JPEG", tx, ty);
 
@@ -388,13 +388,13 @@ function drawCardContent(ctx, x, y, w, h, entry) {
 
   const innerPad = Math.round(w * 0.04);
 
-  // === Card header strip: "DOODLES" wordmark + ✿ logo ===
+  // === Card header strip: "SPECIMEN" wordmark + ✿ logo ===
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#111";
   ctx.textAlign = "left";
   const wordSize = Math.round(h * 0.055); // bumped from 0.04
   ctx.font = `400 ${wordSize}px Anton, 'Inter', system-ui, sans-serif`;
-  ctx.fillText("DOODLES", x + innerPad, y + innerPad + wordSize * 0.88);
+  ctx.fillText("SPECIMEN", x + innerPad, y + innerPad + wordSize * 0.88);
 
   // ✿ flower logo top-right
   drawCardLogo(ctx, x + w - innerPad - wordSize * 0.7, y + innerPad + wordSize * 0.42, wordSize * 0.5);
@@ -433,7 +433,7 @@ function drawCardContent(ctx, x, y, w, h, entry) {
   // Title much bigger so it's the clear focal point of the lower section
   const titleSize = Math.round(h * 0.046);
   ctx.font = `400 ${titleSize}px Anton, 'Inter', system-ui, sans-serif`;
-  const titleText = entry ? `DOODLES #${entry.id}` : "DOODLES #----";
+  const titleText = entry ? `SPECIMEN #${entry.id}` : "SPECIMEN #----";
   ctx.fillText(titleText, x + innerPad, botY + titleSize * 0.88);
 
   // Traits in 2 columns (up to 6) — bigger labels and values
@@ -465,7 +465,7 @@ function drawCardContent(ctx, x, y, w, h, entry) {
 }
 
 function drawCardLogo(ctx, cx, cy, size) {
-  // simple flower glyph as the Doodles mark, drawn vector so it's crisp
+  // simple flower glyph as the card mark, drawn vector so it's crisp
   ctx.save();
   ctx.translate(cx, cy);
   ctx.fillStyle = "#111";
@@ -699,7 +699,7 @@ function render2DPreview(t = 0) {
 // Exports
 // ============================================================================
 function requireCurrent() {
-  if (!current) throw new Error("Load a Doodle first — type a token id and click Slab it.");
+  if (!current) throw new Error("Load an NFT first — type a token id and click Slab it.");
   return current;
 }
 
@@ -714,7 +714,7 @@ async function exportCardPNG() {
 
   // Use just the cream card content, full-bleed
   drawCardContent(ctx, 0, 0, W, H, e);
-  downloadBlob(await canvasToBlob(c, "image/png"), `doodle-card-${e.id}.png`);
+  downloadBlob(await canvasToBlob(c, "image/png"), `slab-card-${e.id}.png`);
   showToast("✿ card PNG saved");
 }
 
@@ -735,7 +735,7 @@ async function exportSlabPNG() {
       slabMesh.rotation.x = 0.05;
       renderer.render(scene, camera);
       const blob = await canvasToBlob(canvas, "image/png");
-      downloadBlob(blob, `doodle-slab-${e.id}.png`);
+      downloadBlob(blob, `slab-${e.id}.png`);
       showToast("✿ slab PNG saved");
     } finally {
       renderer.setPixelRatio(prevPR);
@@ -782,7 +782,7 @@ async function exportSlabPNG() {
     ctx.restore();
 
     const blob = await canvasToBlob(out, "image/png");
-    downloadBlob(blob, `doodle-slab-${e.id}.png`);
+    downloadBlob(blob, `slab-${e.id}.png`);
     showToast("✿ slab PNG saved");
   }
 }
@@ -869,7 +869,7 @@ async function exportSlabGIF() {
     gif.on("abort", () => reject(new Error("GIF aborted")));
     gif.render();
   });
-  downloadBlob(blob, `doodle-slab-${e.id}.gif`);
+  downloadBlob(blob, `slab-${e.id}.gif`);
   showToast("✿ slab GIF saved");
 }
 
@@ -1000,7 +1000,7 @@ async function exportSlabWebM() {
       await done;
       const blob = new Blob(chunks, { type: mime });
       if (!blob.size) throw new Error("WebM produced no data");
-      downloadBlob(blob, `doodle-slab-${e.id}.webm`);
+      downloadBlob(blob, `slab-${e.id}.webm`);
       showToast("✿ slab WebM saved");
     } finally {
       scene.background = null;
@@ -1035,7 +1035,7 @@ async function exportSlabWebM() {
     await done;
     const blob = new Blob(chunks, { type: mime });
     if (!blob.size) throw new Error("WebM produced no data");
-    downloadBlob(blob, `doodle-slab-${e.id}.webm`);
+    downloadBlob(blob, `slab-${e.id}.webm`);
     showToast("✿ slab WebM saved");
   }
 }
@@ -1068,7 +1068,7 @@ async function exportSlabGLB() {
     mesh = new THREE.Mesh(geom, mat);
   }
   mesh.rotation.set(0, 0, 0);
-  mesh.name = `DoodleSlab_${e.id}`;
+  mesh.name = `Slab_${e.id}`;
   exportScene.add(mesh);
 
   const buf = await new Promise((resolve, reject) => {
@@ -1077,7 +1077,7 @@ async function exportSlabGLB() {
     } catch (err) { reject(err); }
   });
   if (!(buf instanceof ArrayBuffer)) throw new Error("GLB returned non-binary");
-  downloadBlob(new Blob([buf], { type: "model/gltf-binary" }), `doodle-slab-${e.id}.glb`);
+  downloadBlob(new Blob([buf], { type: "model/gltf-binary" }), `slab-${e.id}.glb`);
   showToast("✿ slab GLB saved");
 }
 
@@ -1089,19 +1089,19 @@ async function loadSlab(rawId) {
   if (!/^\d+$/.test(id)) return showError("Token id must be a positive integer");
   const n = Number(id);
   if (n < 0 || n > DOODLES.maxId)
-    return showError(`Doodles token ids go from 0 to ${DOODLES.maxId}`);
+    return showError(`Token ids go from 0 to ${DOODLES.maxId}`);
 
   showError("");
-  setLoading(true, "fetching doodle…");
+  setLoading(true, "fetching nft…");
   setBusy(true);
   try {
     const entry = await fetchDoodle(id);
     current = entry;
     rerenderSlabTexture();
-    showToast(`✿ Doodle #${id} loaded in ${entry.loadMs}ms`);
+    showToast(`✿ Specimen #${id} loaded in ${entry.loadMs}ms`);
   } catch (e) {
     console.error(e);
-    showError(e.message || "Could not load doodle");
+    showError(e.message || "Could not load NFT");
   } finally {
     setLoading(false);
     setBusy(false);
