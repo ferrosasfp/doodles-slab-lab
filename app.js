@@ -1180,6 +1180,51 @@ function rgbMix(c, target, t) {
   ];
 }
 
+// Collection logo (Doodles wordmark). Loaded once at boot.
+let wpLogoImg = null;
+function ensureWallpaperLogo() {
+  if (wpLogoImg) return Promise.resolve(wpLogoImg);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => { wpLogoImg = img; resolve(img); };
+    img.onerror = () => resolve(null);
+    img.src = "./logo.svg";
+  });
+}
+
+// Draw the collection logo. For Doodles the SVG is a black wordmark on
+// transparent — we use globalCompositeOperation tricks to recolor when
+// the bg is dark so the text stays legible.
+function drawCollectionLogo(ctx, W, H, opts = {}) {
+  if (!wpLogoImg || !wpLogoImg.naturalWidth) return;
+  const isPortrait = H > W;
+  const S = Math.min(W, H);
+  const logoH = opts.size ?? (isPortrait ? S * 0.040 : S * 0.060);
+  const ar = wpLogoImg.naturalWidth / wpLogoImg.naturalHeight;
+  const logoW = logoH * ar;
+  const cx = opts.cx ?? W / 2;
+  const cy = opts.cy ?? H - S * 0.05 - logoH / 2;
+  const dx = cx - logoW / 2;
+  const dy = cy - logoH / 2;
+
+  // If the canvas at this position is dark, invert the logo for legibility
+  let invert = opts.invert;
+  if (invert === undefined) {
+    const sample = ctx.getImageData(Math.max(0, Math.floor(cx)), Math.max(0, Math.floor(cy)), 1, 1).data;
+    const lum = 0.299 * sample[0] + 0.587 * sample[1] + 0.114 * sample[2];
+    invert = lum < 128;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = opts.alpha ?? 0.85;
+  if (invert) {
+    // Use difference blend to flip the dark logo to light against dark bg
+    ctx.globalCompositeOperation = "difference";
+  }
+  ctx.drawImage(wpLogoImg, dx, dy, logoW, logoH);
+  ctx.restore();
+}
+
 // Sample the NFT's actual background color from the four corners.
 // Doodles backgrounds are flat pastels (the Background trait) so corner
 // sampling cleanly yields the exact color we want to extend.
@@ -1251,6 +1296,7 @@ function wpPortrait(ctx, W, H, entry) {
     ny = 0;
   }
   ctx.drawImage(img, nx, ny, nW, nH);
+  drawCollectionLogo(ctx, W, H);
 }
 
 // =====================================================================
@@ -1279,6 +1325,7 @@ function wpStudio(ctx, W, H, entry) {
   const nx = (W - nW) / 2;
   const ny = (H - nH) / 2;
   ctx.drawImage(img, nx, ny, nW, nH);
+  drawCollectionLogo(ctx, W, H);
 }
 
 // =====================================================================
@@ -1337,23 +1384,22 @@ function wpPoster(ctx, W, H, entry) {
   ctx.fillStyle = rgbStr(textColor, 0.94);
   const textX = isPortrait ? W / 2 : Math.round(W * 0.06);
   ctx.fillText(idText, textX, textY);
-
-  const capSize = Math.max(11, Math.round(S * 0.013));
-  ctx.font = `500 ${capSize}px 'JetBrains Mono', monospace`;
-  ctx.fillStyle = rgbStr(textColor, 0.55);
-  const capY = textY + capSize * 1.6;
-  const caption = "DOODLES  /  ETHEREUM";
-  const tracking = capSize * 0.32;
-  let total = 0;
-  const widths = [];
-  for (const ch of caption) { const w = ctx.measureText(ch).width; widths.push(w); total += w; }
-  total += tracking * (caption.length - 1);
-  let cur = textAlign === "center" ? textX - total / 2 : textX;
-  for (let i = 0; i < caption.length; i++) {
-    ctx.fillText(caption[i], cur, capY);
-    cur += widths[i] + tracking;
-  }
   ctx.restore();
+
+  // Logo replaces text caption — visual brand mark in same slot
+  if (isPortrait) {
+    drawCollectionLogo(ctx, W, H, {
+      cx: W / 2,
+      cy: textY + S * 0.05,
+      size: S * 0.045,
+    });
+  } else {
+    drawCollectionLogo(ctx, W, H, {
+      cx: Math.round(W * 0.06) + S * 0.10,
+      cy: textY + S * 0.10,
+      size: S * 0.07,
+    });
+  }
 }
 
 // =====================================================================
@@ -1392,6 +1438,8 @@ function wpField(ctx, W, H, entry) {
   fall.addColorStop(1, rgbStr(darkBg, 0.75));
   ctx.fillStyle = fall;
   ctx.fillRect(0, ny + nH * 0.8, W, H - (ny + nH * 0.8));
+
+  drawCollectionLogo(ctx, W, H);
 }
 
 async function renderWallpaper(style, deviceKey, entry) {
@@ -1666,6 +1714,10 @@ exportBtns.forEach((btn) => {
 
   startAutoRotate();
   wireWallpaperUI();
+  // Preload the collection logo (best-effort; wallpapers render fine without it)
+  ensureWallpaperLogo().then(() => {
+    if (current) updateWallpaperPreview();
+  });
 
   const id = String(Math.floor(Math.random() * (DOODLES.maxId + 1)));
   tokenInput.value = id;
