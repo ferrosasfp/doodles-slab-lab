@@ -1162,313 +1162,236 @@ const WP_DEVICES = {
   "ipad":        { w: 2048, h: 2732, label: "iPad" },
 };
 
-const WP_STYLES = ["minimal", "bloom", "slab", "editorial"];
-const SRC_ASPECT_DOODLES = 1; // square
 
-// --- helpers ---
-function sampleBg(img) {
-  const c = document.createElement("canvas");
-  c.width = 1; c.height = 1;
-  const ctx = c.getContext("2d");
-  const sw = 48, sh = 48;
-  const corners = [
-    [0, 0], [img.naturalWidth - sw, 0],
-    [0, img.naturalHeight - sh], [img.naturalWidth - sw, img.naturalHeight - sh],
-  ];
-  let r = 0, g = 0, b = 0;
-  for (const [sx, sy] of corners) {
-    ctx.clearRect(0, 0, 1, 1);
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 1, 1);
-    const p = ctx.getImageData(0, 0, 1, 1).data;
-    r += p[0]; g += p[1]; b += p[2];
-  }
-  return [Math.round(r / 4), Math.round(g / 4), Math.round(b / 4)];
-}
+const WP_STYLES = ["portrait", "studio", "poster", "field"];
 
-function shiftRgb([r, g, b], amount) {
-  // Negative amount brightens, positive darkens
-  return [Math.max(0, Math.min(255, r * (1 - amount))), Math.max(0, Math.min(255, g * (1 - amount))), Math.max(0, Math.min(255, b * (1 - amount)))]
-    .map(Math.round);
-}
-
+// ----- Color helpers -----
 function rgbStr([r, g, b], a = 1) {
   return a < 1 ? `rgba(${r},${g},${b},${a})` : `rgb(${r},${g},${b})`;
 }
+function relLuminance([r, g, b]) {
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+function rgbMix(c, target, t) {
+  return [
+    Math.round(c[0] * (1 - t) + target[0] * t),
+    Math.round(c[1] * (1 - t) + target[1] * t),
+    Math.round(c[2] * (1 - t) + target[2] * t),
+  ];
+}
 
-function drawSoftNoise(ctx, W, H, density = 180, seed = 555) {
-  ctx.save();
-  let gs = seed;
-  const rng = () => { gs = (gs * 1103515245 + 12345) & 0x7fffffff; return gs / 0x7fffffff; };
-  for (let i = 0; i < density; i++) {
-    const x = rng() * W, y = rng() * H, r = 0.5 + rng() * 1.4;
-    ctx.fillStyle = `rgba(${rng() < 0.5 ? "255,255,255" : "60,60,60"},${0.02 + rng() * 0.05})`;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+// Sample the NFT's actual background color from the four corners.
+// Doodles backgrounds are flat pastels (the Background trait) so corner
+// sampling cleanly yields the exact color we want to extend.
+function sampleNftBackground(img) {
+  const W = img.naturalWidth || img.width;
+  const H = img.naturalHeight || img.height;
+  const sw = Math.min(96, Math.floor(W / 12));
+  const sh = Math.min(96, Math.floor(H / 12));
+  const sample = (sx, sy) => {
+    const c = document.createElement("canvas");
+    c.width = 1; c.height = 1;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 1, 1);
+    const d = ctx.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2]];
+  };
+  const corners = [
+    sample(0, 0),
+    sample(W - sw, 0),
+    sample(0, H - sh),
+    sample(W - sw, H - sh),
+  ];
+  let maxDelta = 0;
+  for (let i = 0; i < corners.length; i++) {
+    for (let j = i + 1; j < corners.length; j++) {
+      const d =
+        Math.abs(corners[i][0] - corners[j][0]) +
+        Math.abs(corners[i][1] - corners[j][1]) +
+        Math.abs(corners[i][2] - corners[j][2]);
+      if (d > maxDelta) maxDelta = d;
+    }
   }
-  ctx.restore();
+  const uniform = maxDelta < 30;
+  const avg = corners.reduce(
+    (acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]],
+    [0, 0, 0]
+  );
+  return {
+    color: [Math.round(avg[0] / 4), Math.round(avg[1] / 4), Math.round(avg[2] / 4)],
+    uniform,
+  };
 }
 
-// --- Style 1: Minimal — soft pastel bg sampled from Doodle + centered NFT ---
-function wpMinimal(ctx, W, H, entry) {
+// =====================================================================
+// STYLE 1 — PORTRAIT  ·  NFT bg extended (iPhone-first)
+// =====================================================================
+function wpPortrait(ctx, W, H, entry) {
   const img = entry.image;
-  const accent = sampleBg(img);
-
-  // Soft pastel gradient — keep accent visible, darken slightly toward bottom
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, rgbStr(shiftRgb(accent, -0.10)));
-  grad.addColorStop(1, rgbStr(shiftRgb(accent, 0.30)));
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  drawSoftNoise(ctx, W, H, Math.round((W * H) / 20000));
-
-  // NFT square (Doodles are 1:1)
   const isPortrait = H > W;
-  const targetSide = isPortrait ? Math.round(W * 0.78) : Math.round(H * 0.78);
-  const side = Math.min(targetSide, Math.min(W, H) * 0.86);
-  const nx = (W - side) / 2;
-  const ny = (H - side) / 2;
+  const SRC = 1;
 
-  // Soft shadow
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.32)";
-  ctx.shadowBlur = Math.round(Math.min(W, H) * 0.045);
-  ctx.shadowOffsetY = Math.round(Math.min(W, H) * 0.012);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(nx, ny, side, side);
-  ctx.restore();
-
-  ctx.save();
-  ctx.filter = "saturate(1.45) contrast(1.10) brightness(1.02)";
-  ctx.drawImage(img, nx, ny, side, side);
-  ctx.restore();
-
-  // Cream hairline frame
-  ctx.strokeStyle = "rgba(255,255,255,0.55)";
-  ctx.lineWidth = Math.max(2, Math.round(Math.min(W, H) * 0.0016));
-  ctx.strokeRect(nx, ny, side, side);
-
-  // Token mark — bottom-center, Anton stencil
-  const mark = `DOODLES · #${entry.id}`;
-  const markSize = Math.round(Math.min(W, H) * 0.022);
-  ctx.font = `400 ${markSize}px Anton, 'Inter', system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  const pad = Math.round(Math.min(W, H) * 0.04);
-  ctx.fillText(mark, W / 2, H - pad);
-}
-
-// --- Style 2: Bloom — blurred Doodle bg + sharp Doodle on top ---
-function wpBloom(ctx, W, H, entry) {
-  const img = entry.image;
-
-  // Cover-fit Doodle (1:1) — for landscape, height-bound; portrait, width-bound
-  let bw, bh;
-  if (W > H) { bh = H; bw = bh; }   // 1:1 cover for landscape = match height
-  else       { bw = W; bh = bw; }
-  bw = Math.max(W, bw) * 1.15;
-  bh = Math.max(H, bh) * 1.15;
-  const bx = (W - bw) / 2, by = (H - bh) / 2;
-
-  ctx.save();
-  ctx.filter = `blur(${Math.round(Math.min(W, H) * 0.045)}px) saturate(1.7) brightness(0.85)`;
-  ctx.drawImage(img, bx, by, bw, bh);
-  ctx.restore();
-
-  // Cream vignette glow + corner soft tint
-  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
-  vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.45)");
-  ctx.fillStyle = vg;
+  const { color: bgColor, uniform } = sampleNftBackground(img);
+  const bg = uniform ? bgColor : rgbMix(bgColor, [240, 236, 220], 0.20);
+  ctx.fillStyle = rgbStr(bg);
   ctx.fillRect(0, 0, W, H);
 
-  // Sharp Doodle on top
-  const isPortrait = H > W;
-  let side;
-  if (isPortrait) side = Math.round(W * 0.74);
-  else            side = Math.round(H * 0.66);
-  const nx = (W - side) / 2;
-  const ny = (H - side) / 2;
-
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.55)";
-  ctx.shadowBlur = Math.round(Math.min(W, H) * 0.04);
-  ctx.shadowOffsetY = Math.round(Math.min(W, H) * 0.008);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(nx, ny, side, side);
-  ctx.restore();
-
-  ctx.save();
-  ctx.filter = "saturate(1.55) contrast(1.18)";
-  ctx.drawImage(img, nx, ny, side, side);
-  ctx.restore();
-
-  // Hairline frame
-  ctx.strokeStyle = "rgba(255,255,255,0.85)";
-  ctx.lineWidth = Math.max(2, Math.round(Math.min(W, H) * 0.0018));
-  ctx.strokeRect(nx, ny, side, side);
-
-  // Token mark
-  const markSize = Math.round(Math.min(W, H) * 0.022);
-  ctx.font = `400 ${markSize}px Anton, 'Inter', system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,255,255,0.86)";
-  const labelY = isPortrait ? ny + side + Math.min(W, H) * 0.05 + markSize : H - Math.round(Math.min(W, H) * 0.04);
-  ctx.fillText(`DOODLES · #${entry.id}`, W / 2, labelY);
-}
-
-// --- Style 3: Slab portrait re-encoded ---
-function wpSlab(ctx, W, H, entry) {
-  // Soft warm cream bg
-  const bg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.1, W / 2, H / 2, Math.max(W, H) * 0.9);
-  bg.addColorStop(0, "#fff3e0");
-  bg.addColorStop(1, "#e8e0c8");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-  drawSoftNoise(ctx, W, H, Math.round((W * H) / 18000));
-
-  // Slab at 5:7 ratio
-  const SLAB_ASPECT = SLAB_W / SLAB_H;
-  const margin = 0.92;
-  let drawH = H * margin;
-  let drawW = drawH * SLAB_ASPECT;
-  if (drawW > W * margin) { drawW = W * margin; drawH = drawW / SLAB_ASPECT; }
-
-  const slabW = Math.round(drawW);
-  const slabH = Math.round(drawH);
-  const slabC = document.createElement("canvas");
-  slabC.width = slabW;
-  slabC.height = slabH;
-  drawSlabFront(slabC, entry);
-
-  // Subtle angle
-  const angle = 0.06;
-  const skewX = -angle * 0.18;
-  const visScale = Math.cos(angle) * 0.99 + 0.01;
-
-  ctx.save();
-  ctx.translate(W / 2, H / 2);
-  ctx.transform(visScale, 0, skewX, 1, 0, 0);
-  ctx.shadowColor = "rgba(0,0,0,0.35)";
-  ctx.shadowBlur = Math.round(Math.min(W, H) * 0.04);
-  ctx.shadowOffsetY = Math.round(Math.min(W, H) * 0.015);
-  ctx.drawImage(slabC, -slabW / 2, -slabH / 2);
-  ctx.restore();
-}
-
-// --- Style 4: Editorial — magazine-cover layout ---
-function wpEditorial(ctx, W, H, entry) {
-  const img = entry.image;
-  const accent = sampleBg(img);
-  const isPortrait = H > W;
-
-  // Two-tone background — accent at top, deep cream at bottom
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, rgbStr(shiftRgb(accent, -0.08)));
-  grad.addColorStop(1, "#fff5e8");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  drawSoftNoise(ctx, W, H, Math.round((W * H) / 18000));
-
-  // Layout
-  const pad = Math.round(Math.min(W, H) * 0.06);
-  let nftS, nftX, nftY, textX, textY, textW;
-
+  let nW, nH, nx, ny;
   if (isPortrait) {
-    nftS = Math.round(Math.min(H * 0.48, W - pad * 2));
-    nftX = (W - nftS) / 2;
-    nftY = pad * 2;
-    textX = pad;
-    textW = W - pad * 2;
-    textY = nftY + nftS + pad * 1.2;
+    nW = W;
+    nH = nW / SRC;
+    const maxH = H * 0.82;
+    if (nH > maxH) { nH = maxH; nW = nH * SRC; }
+    nx = (W - nW) / 2;
+    ny = Math.round(H * 0.02);
   } else {
-    nftS = Math.min(H - pad * 2, W * 0.46);
-    nftX = pad;
-    nftY = (H - nftS) / 2;
-    textX = nftX + nftS + pad;
-    textW = W - textX - pad;
-    textY = pad * 2.5;
+    nH = H;
+    nW = nH * SRC;
+    nx = Math.round(W * 0.06);
+    ny = 0;
+  }
+  ctx.drawImage(img, nx, ny, nW, nH);
+}
+
+// =====================================================================
+// STYLE 2 — CENTER  ·  NFT bg extended, centered
+// =====================================================================
+function wpStudio(ctx, W, H, entry) {
+  const img = entry.image;
+  const isPortrait = H > W;
+  const SRC = 1;
+
+  const { color: bgColor, uniform } = sampleNftBackground(img);
+  const bg = uniform ? bgColor : rgbMix(bgColor, [240, 236, 220], 0.20);
+  ctx.fillStyle = rgbStr(bg);
+  ctx.fillRect(0, 0, W, H);
+
+  let nW, nH;
+  if (isPortrait) {
+    nW = W * 0.90;
+    nH = nW / SRC;
+    const maxH = H * 0.78;
+    if (nH > maxH) { nH = maxH; nW = nH * SRC; }
+  } else {
+    nH = H * 0.92;
+    nW = nH * SRC;
+  }
+  const nx = (W - nW) / 2;
+  const ny = (H - nH) / 2;
+  ctx.drawImage(img, nx, ny, nW, nH);
+}
+
+// =====================================================================
+// STYLE 3 — POSTER  ·  NFT bg extended + token id
+// =====================================================================
+function wpPoster(ctx, W, H, entry) {
+  const img = entry.image;
+  const isPortrait = H > W;
+  const S = Math.min(W, H);
+  const SRC = 1;
+
+  const { color: bgColor, uniform } = sampleNftBackground(img);
+  const bg = uniform ? bgColor : rgbMix(bgColor, [240, 236, 220], 0.20);
+  ctx.fillStyle = rgbStr(bg);
+  ctx.fillRect(0, 0, W, H);
+
+  const lum = relLuminance(bg) / 255;
+  const textColor = lum < 0.45 ? [250, 246, 232] : [16, 16, 22];
+
+  let nW, nH, nx, ny;
+  let textY, textAlign;
+  if (isPortrait) {
+    nW = W;
+    nH = nW / SRC;
+    const maxH = H * 0.62;
+    if (nH > maxH) { nH = maxH; nW = nH * SRC; }
+    nx = (W - nW) / 2;
+    ny = Math.round(H * 0.02);
+    textY = ny + nH + S * 0.10;
+    textAlign = "center";
+  } else {
+    nH = H;
+    nW = nH * SRC;
+    nx = W - nW;
+    ny = 0;
+    textY = H * 0.50;
+    textAlign = "left";
   }
 
-  // NFT
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.32)";
-  ctx.shadowBlur = Math.round(Math.min(W, H) * 0.025);
-  ctx.shadowOffsetY = Math.round(Math.min(W, H) * 0.008);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(nftX, nftY, nftS, nftS);
-  ctx.restore();
+  ctx.drawImage(img, nx, ny, nW, nH);
+
+  const idText = `#${entry.id}`;
+  const targetH = isPortrait ? H * 0.10 : H * 0.24;
+  let fontSize = targetH / 0.74;
+  ctx.font = `400 ${fontSize}px Anton, 'Inter', system-ui, sans-serif`;
+  const maxW = isPortrait ? W * 0.86 : (W - nW) * 0.86;
+  let textW = ctx.measureText(idText).width;
+  if (textW > maxW) {
+    fontSize *= maxW / textW;
+    ctx.font = `400 ${fontSize}px Anton, 'Inter', system-ui, sans-serif`;
+  }
 
   ctx.save();
-  ctx.filter = "saturate(1.50) contrast(1.12)";
-  ctx.drawImage(img, nftX, nftY, nftS, nftS);
-  ctx.restore();
-
-  // Frame
-  ctx.strokeStyle = "rgba(255,255,255,0.85)";
-  ctx.lineWidth = Math.max(2, Math.round(Math.min(W, H) * 0.002));
-  ctx.strokeRect(nftX, nftY, nftS, nftS);
-
-  // Text block
+  ctx.textAlign = textAlign;
   ctx.textBaseline = "alphabetic";
-  ctx.textAlign = "left";
+  ctx.fillStyle = rgbStr(textColor, 0.94);
+  const textX = isPortrait ? W / 2 : Math.round(W * 0.06);
+  ctx.fillText(idText, textX, textY);
 
-  // Kicker
-  const kickSize = Math.round(Math.min(W, H) * 0.018);
-  ctx.font = `700 ${kickSize}px 'JetBrains Mono', Menlo, monospace`;
-  ctx.fillStyle = "#1a1a1a";
-  ctx.fillText("FIELD GRADED · DOODLE LAB", textX, textY + kickSize);
+  const capSize = Math.max(11, Math.round(S * 0.013));
+  ctx.font = `500 ${capSize}px 'JetBrains Mono', monospace`;
+  ctx.fillStyle = rgbStr(textColor, 0.55);
+  const capY = textY + capSize * 1.6;
+  const caption = "DOODLES  /  ETHEREUM";
+  const tracking = capSize * 0.32;
+  let total = 0;
+  const widths = [];
+  for (const ch of caption) { const w = ctx.measureText(ch).width; widths.push(w); total += w; }
+  total += tracking * (caption.length - 1);
+  let cur = textAlign === "center" ? textX - total / 2 : textX;
+  for (let i = 0; i < caption.length; i++) {
+    ctx.fillText(caption[i], cur, capY);
+    cur += widths[i] + tracking;
+  }
+  ctx.restore();
+}
 
-  // Big token id
-  const titleSize = Math.round(Math.min(W, H) * (isPortrait ? 0.13 : 0.16));
-  ctx.font = `400 ${titleSize}px Anton, 'Inter', system-ui, sans-serif`;
-  ctx.fillStyle = "#111";
-  ctx.fillText(`#${entry.id}`, textX, textY + kickSize + titleSize * 1.05);
+// =====================================================================
+// STYLE 4 — STAGE  ·  NFT bg extended + soft floor falloff
+// =====================================================================
+function wpField(ctx, W, H, entry) {
+  const img = entry.image;
+  const isPortrait = H > W;
+  const SRC = 1;
 
-  // Collection subtitle
-  const subSize = Math.round(titleSize * 0.32);
-  ctx.font = `400 ${subSize}px Anton, 'Inter', system-ui, sans-serif`;
-  ctx.fillStyle = "rgba(40, 40, 40, 0.78)";
-  const subY = textY + kickSize + titleSize * 1.05 + subSize * 1.4;
-  ctx.fillText("DOODLES · AN ETHEREUM COLLECTION", textX, subY);
+  const { color: bgColor, uniform } = sampleNftBackground(img);
+  const bg = uniform ? bgColor : rgbMix(bgColor, [240, 236, 220], 0.20);
+  ctx.fillStyle = rgbStr(bg);
+  ctx.fillRect(0, 0, W, H);
 
-  // Hairline separator
-  const sepY = subY + subSize * 0.55;
-  ctx.strokeStyle = "rgba(40, 40, 40, 0.45)";
-  ctx.lineWidth = Math.max(1.5, Math.round(Math.min(W, H) * 0.0015));
-  ctx.beginPath();
-  ctx.moveTo(textX, sepY);
-  ctx.lineTo(textX + Math.min(textW, titleSize * 4), sepY);
-  ctx.stroke();
-
-  // Traits 2x2
-  const traits = (entry.metadata && entry.metadata.attributes) || [];
-  const traitsToShow = traits.slice(0, 4);
-  const labelSize = Math.round(Math.min(W, H) * 0.015);
-  const valSize = Math.round(Math.min(W, H) * 0.024);
-  const rowH = Math.round(valSize * 2.3);
-  let traitsY = sepY + subSize * 1.0;
-  for (let i = 0; i < traitsToShow.length; i++) {
-    const t = traitsToShow[i];
-    const ty = traitsY + Math.floor(i / 2) * rowH;
-    const tx = textX + (i % 2) * Math.min(textW / 2, titleSize * 2);
-
-    ctx.font = `700 ${labelSize}px 'JetBrains Mono', Menlo, monospace`;
-    ctx.fillStyle = "#1a1a1a";
-    ctx.fillText(String(t.trait_type || "").toUpperCase(), tx, ty + labelSize);
-
-    ctx.font = `500 ${valSize}px Anton, 'Inter', system-ui, sans-serif`;
-    ctx.fillStyle = "#111";
-    let val = String(t.value || "");
-    const maxW = (textW / 2) - 8;
-    while (val.length > 0 && ctx.measureText(val).width > maxW) val = val.slice(0, -1);
-    ctx.fillText(val, tx, ty + labelSize + valSize + 4);
+  let nW, nH, nx, ny;
+  if (isPortrait) {
+    nW = W * 0.84;
+    nH = nW / SRC;
+    const maxH = H * 0.62;
+    if (nH > maxH) { nH = maxH; nW = nH * SRC; }
+    nx = (W - nW) / 2;
+    ny = Math.round(H * 0.16);
+  } else {
+    nH = H * 0.84;
+    nW = nH * SRC;
+    nx = (W - nW) / 2;
+    ny = Math.round(H * 0.08);
   }
 
-  // Flower mark corner
-  const markSize = Math.round(Math.min(W, H) * 0.04);
-  drawCardLogo(ctx, W - pad - markSize * 0.5, H - pad - markSize * 0.5, markSize);
+  ctx.drawImage(img, nx, ny, nW, nH);
+
+  const darkBg = rgbMix(bg, [0, 0, 0], 0.40);
+  const fall = ctx.createLinearGradient(0, ny + nH * 0.8, 0, H);
+  fall.addColorStop(0, rgbStr(bg, 0));
+  fall.addColorStop(1, rgbStr(darkBg, 0.75));
+  ctx.fillStyle = fall;
+  ctx.fillRect(0, ny + nH * 0.8, W, H - (ny + nH * 0.8));
 }
 
 async function renderWallpaper(style, deviceKey, entry) {
@@ -1480,10 +1403,10 @@ async function renderWallpaper(style, deviceKey, entry) {
   ctx.imageSmoothingQuality = "high";
 
   switch (style) {
-    case "minimal":   wpMinimal(ctx, W, H, entry); break;
-    case "bloom":     wpBloom(ctx, W, H, entry); break;
-    case "slab":      wpSlab(ctx, W, H, entry); break;
-    case "editorial": wpEditorial(ctx, W, H, entry); break;
+    case "portrait": wpPortrait(ctx, W, H, entry); break;
+    case "studio":   wpStudio(ctx, W, H, entry); break;
+    case "poster":   wpPoster(ctx, W, H, entry); break;
+    case "field":    wpField(ctx, W, H, entry); break;
     default: throw new Error("Unknown wallpaper style: " + style);
   }
   return c;
@@ -1508,7 +1431,7 @@ function ensureJSZip() {
 }
 
 // --- UI state ---
-let wpState = { style: "minimal", device: "desktop-fhd" };
+let wpState = { style: "portrait", device: "iphone" };
 let wpPreviewCanvas = null;
 let wpPreviewToken = 0;
 let wpFontsReady = false;
